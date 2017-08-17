@@ -12,5 +12,11 @@ class Doctor(BroControl.plugin.Plugin):
         return 1
 
     def init(self):
-        self.message("foo plugin is initialized")
+        self.message("Doctor plugin is initialized")
         return True
+
+    def commands(self):
+        return [("", "", "Troubleshoot Bro installation")]
+
+    def cmd_custom(self, cmd, args, cmdout):
+        self.message("WEEEEE")
