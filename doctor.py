@@ -16,7 +16,10 @@ class Doctor(BroControl.plugin.Plugin):
         return True
 
     def commands(self):
-        return [("bro", "", "Troubleshoot Bro installation")]
+        return [("", "", "Troubleshoot Bro installation")]
 
     def cmd_custom(self, cmd, args, cmdout):
         self.message("WEEEEE")
+        results = BroControl.cmdresult.CmdResult()
+        return results
+
