@@ -6,6 +6,7 @@ import gzip
 import glob
 import json
 import os
+import subprocess
 
 def bro_ascii_reader(f):
     line = ''
@@ -94,6 +95,7 @@ class Doctor(BroControl.plugin.Plugin):
         self.message("Doctor plugin is initialized")
 
         self.log_directory = self.getGlobalOption("logdir")
+        self.bro_binary = self.getGlobalOption("bro")
         return True
 
     def commands(self):
@@ -122,7 +124,7 @@ class Doctor(BroControl.plugin.Plugin):
                     break
                 workers[rec['peer']].append(rec)
 
-        print "Capture loss stats:"
+        self.message("Capture loss stats:")
         for w, recs in sorted(workers.items()):
             min_loss = min(float(rec['percent_lost']) for rec in recs)
             max_loss = max(float(rec['percent_lost']) for rec in recs)
@@ -132,14 +134,27 @@ class Doctor(BroControl.plugin.Plugin):
             loss_count = sum(1 for rec in recs if float(rec['percent_lost']) != 0.0)
             noloss_count = len(recs) - loss_count
 
-            print "worker={} loss_count={} noloss_count={} min_loss={} max_loss={} overall_loss={}".format(w, loss_count, noloss_count, min_loss, max_loss, overall_pct)
+            self.message("worker={} loss_count={} noloss_count={} min_loss={} max_loss={} overall_loss={}".format(w, loss_count, noloss_count, min_loss, max_loss, overall_pct))
+
+    def check_pfring(self):
+        """Check to see if bro is linked against pf_ring if it is configured to use it"""
+
+        pfring_configured = any(n.lb_method == 'pf_ring' for n in self.nodes())
+
+        bro_ldd = subprocess.check_output(["ldd", self.bro_binary])
+        pfring_linked = 'pfring' in bro_ldd
+
+        if pfring_configured == pfring_linked:
+            self.message("pf_ring: ok! configured={} linked={}".format(pfring_configured, pfring_linked))
+        else:
+            self.error("pf_ring: error! configured={} linked={}".format(pfring_configured, pfring_linked))
         
     def cmd_custom(self, cmd, args, cmdout):
         self.message("Using log directory {}".format(self.log_directory))
         results = BroControl.cmdresult.CmdResult()
         results.ok = True
 
-        for f in [self.check_reporter, self.check_capture_loss]:
+        for f in [self.check_pfring, self.check_reporter, self.check_capture_loss]:
             results.ok = f() and results.ok
 
         return results
