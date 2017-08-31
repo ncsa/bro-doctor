@@ -137,7 +137,7 @@ class Doctor(BroControl.plugin.Plugin):
             return True
         self.err("Found {} reporter log files in the past {} days".format(len(files), GOBACK) )
 
-        self.err("100 most recent reporter.log errors:")
+        self.message("100 most recent reporter.log errors:")
         seen = set()
         suppressed = 0
         for rec in read_bro_logs_with_line_limit(reversed(files), 100):
@@ -152,7 +152,7 @@ class Doctor(BroControl.plugin.Plugin):
             else:
                 suppressed += 1
         if suppressed:
-            self.err("suppressed {} duplicate messages".format(suppressed))
+            self.message("suppressed {} duplicate messages".format(suppressed))
 
     def check_capture_loss(self):
         """Checking for recent capture_loss.log entries"""
@@ -195,7 +195,6 @@ class Doctor(BroControl.plugin.Plugin):
         results = BroControl.cmdresult.CmdResult()
         results.ok = True
 
-        self.message("Running checks...")
         for f in [self.check_pfring, self.check_reporter, self.check_capture_loss]:
             self.message(f.__doc__)
             self.message("#" * len(f.__doc__))
