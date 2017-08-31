@@ -128,6 +128,7 @@ class Doctor(BroControl.plugin.Plugin):
             self.ok(msg)
         else:
             self.err(msg)
+        return is_ok
 
     def check_reporter(self):
         """Checking for recent reporter.log entries"""
@@ -153,6 +154,7 @@ class Doctor(BroControl.plugin.Plugin):
                 suppressed += 1
         if suppressed:
             self.message("suppressed {} duplicate messages".format(suppressed))
+        return False
 
     def check_capture_loss(self):
         """Checking for recent capture_loss.log entries"""
@@ -167,6 +169,8 @@ class Doctor(BroControl.plugin.Plugin):
             workers[rec['peer']].append(rec)
 
         self.message("Capture loss stats:")
+        
+        ok = True
         for w, recs in sorted(workers.items()):
             min_loss = min(float(rec['percent_lost']) for rec in recs)
             max_loss = max(float(rec['percent_lost']) for rec in recs)
@@ -177,7 +181,8 @@ class Doctor(BroControl.plugin.Plugin):
             noloss_count = len(recs) - loss_count
 
             msg = "worker={} loss_count={} noloss_count={} min_loss={} max_loss={} overall_loss={}".format(w, loss_count, noloss_count, min_loss, max_loss, overall_pct)
-            self.ok_if(msg, overall_pct <= LOSS_THRESHOLD)
+            ok = ok and self.ok_if(msg, overall_pct <= LOSS_THRESHOLD)
+        return ok
 
     def check_pfring(self):
         """Checking if bro is linked against pf_ring if lb_method is pf_ring"""
@@ -189,14 +194,40 @@ class Doctor(BroControl.plugin.Plugin):
         pfring_linked = 'pfring' in bro_ldd
 
         msg = "configured to use pf_ring={}. linked against pf_ring={}".format(pfring_configured, pfring_linked)
-        self.ok_if(msg, pfring_configured == pfring_linked)
+        return self.ok_if(msg, pfring_configured == pfring_linked)
+
+    def check_duplicate_5_tuples(self):
+        """Checking if any recent connections have been logged multiple times"""
+        #TODO: should really check against multiple workers, but will need 2 funcs for that
+
+        files = find_recent_log_files(self.log_directory, "conn.*", days=1)
+        if not files:
+            self.err("No conn log files in the past day???")
+            return False
+
+        tuples = defaultdict(int)
+        for rec in read_bro_logs_with_line_limit(reversed(files), 10000):
+            tup = (rec['proto'], rec['id.orig_h'], rec['id.orig_p'], rec['id.resp_h'], rec["id.resp_p"])
+            tup = ' '.join(tup)
+            tuples[tup] += 1
+
+        bad = [(tup, cnt) for (tup, cnt) in tuples.items() if cnt > 1]
+        if bad:
+            self.err("{} out of {} connections appear to be duplicate".format(len(bad), len(tuples)))
+            self.err("First 20:")
+            for tup, cnt in bad[:20]:
+                self.message("count={} {}".format(cnt, tup))
+            
+        return not bool(bad)
+
         
     def cmd_custom(self, cmd, args, cmdout):
         self.message("Using log directory {}".format(self.log_directory))
         results = BroControl.cmdresult.CmdResult()
         results.ok = True
 
-        for f in [self.check_pfring, self.check_reporter, self.check_capture_loss]:
+        funcs = [getattr(self, f) for f in dir(self) if f.startswith("check_")]
+        for f in funcs:
             self.message(f.__doc__)
             self.message("#" * len(f.__doc__))
             results.ok = f() and results.ok
