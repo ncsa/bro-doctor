@@ -138,7 +138,7 @@ class Doctor(BroControl.plugin.Plugin):
             return True
         self.err("Found {} reporter log files in the past {} days".format(len(files), GOBACK) )
 
-        self.message("100 most recent reporter.log errors:")
+        self.message("100 most recent reporter.log messages:")
         seen = set()
         suppressed = 0
         for rec in read_bro_logs_with_line_limit(reversed(files), 100):
@@ -228,9 +228,11 @@ class Doctor(BroControl.plugin.Plugin):
 
         funcs = [getattr(self, f) for f in dir(self) if f.startswith("check_")]
         for f in funcs:
-            self.message(f.__doc__)
-            self.message("#" * len(f.__doc__))
+            self.message("#" * (len(f.__doc__)+4))
+            self.message("# {} #".format( f.__doc__))
+            self.message("#" * (len(f.__doc__)+4))
             results.ok = f() and results.ok
+            self.message('')
             self.message('')
 
         return results
