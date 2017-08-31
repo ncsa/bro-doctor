@@ -177,7 +177,7 @@ class Doctor(BroControl.plugin.Plugin):
             noloss_count = len(recs) - loss_count
 
             msg = "worker={} loss_count={} noloss_count={} min_loss={} max_loss={} overall_loss={}".format(w, loss_count, noloss_count, min_loss, max_loss, overall_pct)
-            self.ok_if(msg, overall_pct >= LOSS_THRESHOLD)
+            self.ok_if(msg, overall_pct <= LOSS_THRESHOLD)
 
     def check_pfring(self):
         """Checking if bro is linked against pf_ring if lb_method is pf_ring"""
