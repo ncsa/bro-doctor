@@ -184,6 +184,7 @@ class Doctor(BroControl.plugin.Plugin):
 
         pfring_configured = any(n.lb_method == 'pf_ring' for n in self.nodes())
 
+        #TODO: use exec to check on all nodes. needed? yes? no?
         bro_ldd = subprocess.check_output(["ldd", self.bro_binary])
         pfring_linked = 'pfring' in bro_ldd
 
