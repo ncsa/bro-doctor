@@ -181,7 +181,7 @@ class Doctor(BroControl.plugin.Plugin):
             noloss_count = len(recs) - loss_count
 
             msg = "worker={} loss_count={} noloss_count={} min_loss={} max_loss={} overall_loss={}".format(w, loss_count, noloss_count, min_loss, max_loss, overall_pct)
-            ok = ok and self.ok_if(msg, overall_pct <= LOSS_THRESHOLD)
+            ok = self.ok_if(msg, overall_pct <= LOSS_THRESHOLD) and ok
         return ok
 
     def check_pfring(self):
