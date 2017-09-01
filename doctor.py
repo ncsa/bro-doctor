@@ -138,22 +138,27 @@ class Doctor(BroControl.plugin.Plugin):
             return True
         self.err("Found {} reporter log files in the past {} days".format(len(files), GOBACK) )
 
-        self.message("100 most recent reporter.log messages:")
-        seen = set()
-        suppressed = 0
-        for rec in read_bro_logs_with_line_limit(reversed(files), 100):
+        self.message("Recent reporter.log messages:")
+        seen = defaultdict(list)
+        order = []
+        for rec in read_bro_logs_with_line_limit(reversed(files), 1000):
             if rec['ts'] == '0.000000':
                 rec['ts'] = ''
             if rec['location'] == '(empty)':
                 rec['location'] = ''
             m = "{location} {ts} {level} {message}".format(**rec).lstrip()
-            if m not in seen:
+            key = "{level} {message}".format(**rec).lstrip()
+            if key not in seen:
+                order.append(key)
+            seen[key].append(m)
+
+        for key in order:
+            msgs = seen[key]
+            count = len(msgs)
+            for m in msgs[:2]:
                 self.message(red(m))
-                seen.add(m)
-            else:
-                suppressed += 1
-        if suppressed:
-            self.message("suppressed {} duplicate messages".format(suppressed))
+            if len(msgs) > 2:
+                self.message("{} duplicate messages suppressed".format(len(msgs)-2))
         return False
 
     def check_capture_loss(self):
