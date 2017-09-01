@@ -195,10 +195,20 @@ class Doctor(BroControl.plugin.Plugin):
 
         pfring_configured = any(n.lb_method == 'pf_ring' for n in self.nodes())
 
-        #TODO: use exec to check on all nodes. needed? yes? no?
-        bro_ldd = subprocess.check_output(["ldd", self.bro_binary])
-        pfring_linked = 'pfring' in bro_ldd
+        cmds = []
+        ldd_cmd = "ldd {}".format(self.bro_binary)
+        interface_nodes = set(n for n in self.nodes() if n.interface)
+        for n in interface_nodes:
+            cmds.append((n, ldd_cmd))
 
+        pfring_linked = True
+        for (n, success, output) in self.executeParallel(cmds):
+            out = '\n'.join(output)
+            pfring_linked = pfring_linked and 'pfring' in out
+            if pfring_configured and 'pfring' not in out:
+                self.err("bro binary on node {} is not linked against pf_ring".format(n))
+                self.message(out)
+    
         msg = "configured to use pf_ring={}. linked against pf_ring={}".format(pfring_configured, pfring_linked)
         return self.ok_if(msg, pfring_configured == pfring_linked)
 
