@@ -96,8 +96,9 @@ def find_recent_log_directories(base_dir, days=7):
 def find_recent_log_files(base_dir, glob_pattern,  days=7):
     dirs = find_recent_log_directories(base_dir, days)
     matches = []
-    for d in dirs:
+    for d in dirs + ["current"]:
         matches.extend(glob.glob(os.path.join(base_dir, d, glob_pattern)))
+
     return matches
 
 class Doctor(BroControl.plugin.Plugin):
@@ -212,6 +213,13 @@ class Doctor(BroControl.plugin.Plugin):
 
         tuples = defaultdict(int)
         for rec in read_bro_logs_with_line_limit(reversed(files), 10000):
+            # Only count connections that have completed a three way handshake
+            # Also ignore flipped connections as those are probably backscatter
+            if 'h' not in rec['history'].lower() or '^' in rec['history']:
+                continue
+            # Also ignore connections that didn't send bytes back and forth
+            if rec['orig_bytes'] == '0' or rec['resp_bytes'] == '0':
+                continue
             tup = (rec['proto'], rec['id.orig_h'], rec['id.orig_p'], rec['id.resp_h'], rec["id.resp_p"])
             tup = ' '.join(tup)
             tuples[tup] += 1
@@ -222,6 +230,8 @@ class Doctor(BroControl.plugin.Plugin):
             self.err("First 20:")
             for tup, cnt in bad[:20]:
                 self.message("count={} {}".format(cnt, tup))
+        else:
+            self.ok("ok! No duplicates found")
             
         return not bool(bad)
 
