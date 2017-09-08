@@ -35,6 +35,12 @@ def all_lowercase(s):
 def all_uppercase(s):
     return all(c in uppercase_chars for c in s)
 
+def percent(a, b):
+    try :
+        return 100.0 * a / b
+    except ZeroDivisionError:
+        return 0
+
 def bro_ascii_reader(f):
     line = ''
     headers = {}
@@ -197,7 +203,7 @@ class Doctor(BroControl.plugin.Plugin):
             max_loss = max(float(rec['percent_lost']) for rec in recs)
             total_gaps = sum(int(rec['gaps']) for rec in recs)
             total_acks = sum(int(rec['acks']) for rec in recs)
-            overall_pct = 100.0 * total_gaps/total_acks
+            overall_pct = percent(total_gaps, total_acks)
             loss_count = sum(1 for rec in recs if float(rec['percent_lost']) != 0.0)
             noloss_count = len(recs) - loss_count
 
@@ -250,7 +256,7 @@ class Doctor(BroControl.plugin.Plugin):
             tuples[tup] += 1
 
         bad = [(tup, cnt) for (tup, cnt) in tuples.items() if cnt > 1]
-        bad_pct = 100 * len(bad) / len(tuples)
+        bad_pct = percent(len(bad), len(tuples))
         if bad_pct >= 1:
             self.err("{}%, {} out of {} connections appear to be duplicate".format(bad_pct, len(bad), len(tuples)))
             self.err("First 20:")
@@ -292,7 +298,7 @@ class Doctor(BroControl.plugin.Plugin):
             else:
                 histories['ok'] += 1
 
-        pct = histories['bad_pct'] = 100 * histories['bad'] / (histories['ok'] + histories['bad'])
+        pct = histories['bad_pct'] = percent(histories['bad'], histories['ok'] + histories['bad'])
         msg = "OK connections={ok}. Broken connections={bad}. Bad Percentage={bad_pct}".format(**histories)
         return self.ok_if(msg, pct <= 1)
         
