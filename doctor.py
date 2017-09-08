@@ -286,9 +286,6 @@ class Doctor(BroControl.plugin.Plugin):
             # Ignore connections that don't even appear to be from our address space
             if rec['local_orig'] != 'T' and rec['local_resp'] != 'T':
                 continue
-            # Also ignore connections that didn't send ANY bytes back and forth
-            if rec['orig_bytes'] == '0' or rec['resp_bytes'] == '0':
-                continue
             h = rec['history']
             #Only count connections that started with Syn or handhsake but were not JUST a syn(scan)
             if not h.startswith(("h", "S")) or len(h) == 1:
