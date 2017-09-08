@@ -290,12 +290,16 @@ class Doctor(BroControl.plugin.Plugin):
         return self.ok_if(msg, pct < 2)
         
     def cmd_custom(self, cmd, args, cmdout):
+        args = args.split()
         self.message("Using log directory {}".format(self.log_directory))
         results = BroControl.cmdresult.CmdResult()
         results.ok = True
 
-        funcs = [getattr(self, f) for f in dir(self) if f.startswith("check_")]
-        for f in funcs:
+        funcs = [f for f in dir(self) if f.startswith("check_")]
+        for func in funcs:
+            if args and func not in args:
+                continue
+            f = getattr(self, func)
             self.message("#" * (len(f.__doc__)+4))
             self.message("# {} #".format( f.__doc__))
             self.message("#" * (len(f.__doc__)+4))
