@@ -281,7 +281,6 @@ class Doctor(BroControl.plugin.Plugin):
             if not h.startswith(("h", "S")) or len(h) == 1:
                 continue
             if all_lowercase(h) or all_uppercase(h):
-                print rec
                 histories['bad'] += 1
             else:
                 histories['ok'] += 1
