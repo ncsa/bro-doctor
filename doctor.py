@@ -7,7 +7,10 @@ import glob
 import json
 import os
 import subprocess
+import string
 
+lowercase_chars = set(string.lowercase)
+uppercase_chars = set(string.uppercase)
         
 GOBACK = 7 # days
 LOSS_THRESHOLD = 1
@@ -19,6 +22,11 @@ def red(s):
     return RED + s + ENDC
 def green(s):
     return GREEN + s + ENDC
+
+def all_lowercase(s):
+    return all(c in lowercase_chars for c in s)
+def all_uppercase(s):
+    return all(c in uppercase_chars for c in s)
 
 def bro_ascii_reader(f):
     line = ''
@@ -245,6 +253,41 @@ class Doctor(BroControl.plugin.Plugin):
             
         return not bool(bad)
 
+    def check_SAD_connections(self):
+        """Checking if many recent connections have a SAD or had history"""
+
+        files = find_recent_log_files(self.log_directory, "conn.*", days=1)
+        if not files:
+            self.err("No conn log files in the past day???")
+            return False
+
+        histories = {"ok": 0, "bad": 0}
+        for rec in read_bro_logs_with_line_limit(reversed(files), 100000):
+            # Ignore flipped connections as those are probably backscatter
+            if '^' in rec['history']:
+                continue
+            # Ignore non tcp
+            if rec['proto'] != 'tcp':
+                continue
+            # Ignore connections that don't even appear to be from our address space
+            if rec['local_orig'] != 'T' and rec['local_resp'] != 'T':
+                continue
+            # Also ignore connections that didn't send ANY bytes back and forth
+            if rec['orig_bytes'] == '0' or rec['resp_bytes'] == '0':
+                continue
+            h = rec['history']
+            #Only count connections that started with Syn or handhsake but were not JUST a syn(scan)
+            if not h.startswith(("h", "S")) or len(h) == 1:
+                continue
+            if all_lowercase(h) or all_uppercase(h):
+                print rec
+                histories['bad'] += 1
+            else:
+                histories['ok'] += 1
+
+        pct = histories['bad_pct'] = 100 * histories['bad'] / (histories['ok'] + histories['bad'])
+        msg = "OK connections={ok}. Broken connections={bad}. Bad Percentage={bad_pct}".format(**histories)
+        return self.ok_if(msg, pct < 2)
         
     def cmd_custom(self, cmd, args, cmdout):
         self.message("Using log directory {}".format(self.log_directory))
