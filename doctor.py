@@ -203,7 +203,7 @@ class Doctor(BroControl.plugin.Plugin):
 
         pfring_linked = True
         for (n, success, output) in self.executeParallel(cmds):
-            out = '\n'.join(output)
+            out = ''.join(output)
             pfring_linked = pfring_linked and 'pfring' in out
             if pfring_configured and 'pfring' not in out:
                 self.err("bro binary on node {} is not linked against pf_ring".format(n))
