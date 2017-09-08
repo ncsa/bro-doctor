@@ -277,18 +277,15 @@ class Doctor(BroControl.plugin.Plugin):
 
         histories = {"ok": 0, "bad": 0}
         for rec in read_bro_logs_with_line_limit(reversed(files), 100000):
-            # Ignore flipped connections as those are probably backscatter
-            if rec['history'] == '^h':
-                continue
             # Ignore non tcp
             if rec['proto'] != 'tcp':
                 continue
             # Ignore connections that don't even appear to be from our address space
             if rec['local_orig'] != 'T' and rec['local_resp'] != 'T':
                 continue
-            h = rec['history']
-            #Only count connections that started with Syn or handhsake but were not JUST a syn(scan)
-            if not h.startswith(("h", "S")) or len(h) == 1:
+            h = rec['history'].replace("^", "")
+            #Ignore one packet connections
+            if len(h) == 1:
                 continue
             if all_lowercase(h) or all_uppercase(h):
                 histories['bad'] += 1
@@ -296,7 +293,7 @@ class Doctor(BroControl.plugin.Plugin):
                 histories['ok'] += 1
 
         pct = histories['bad_pct'] = percent(histories['bad'], histories['ok'] + histories['bad'])
-        msg = "OK connections={ok}. Broken connections={bad}. Bad Percentage={bad_pct}".format(**histories)
+        msg = "Full Duplex connections={ok}. Half Duplex connections={bad}. Bad Percentage={bad_pct}".format(**histories)
         return self.ok_if(msg, pct <= 1)
         
     def cmd_custom(self, cmd, args, cmdout):
