@@ -1,5 +1,12 @@
+"""
+# Bro Doctor
+
+This plugin provides a "doctor.bro" command for broctl that will help to
+troubleshoot various common cluster problems.
+"""
+
+from __future__ import print_function
 import BroControl.plugin
-from BroControl import config
 
 from collections import defaultdict, namedtuple
 import gzip
@@ -309,3 +316,29 @@ class Doctor(BroControl.plugin.Plugin):
 
         return results
 
+if __name__ == "__main__":
+    print(__doc__)
+    funcs = [f for f in dir(Doctor) if f.startswith("check_")]
+
+    print("This plugin runs the following checks:")
+    for func in funcs:
+        f = getattr(Doctor, func)
+        print("## {}".format(func))
+        print(f.__doc__.replace("Checking", "Checks"))
+        print()
+
+    print("""
+# Usage
+
+    broctl doctor.bro [check] [check]
+
+## Examples
+Run all checks
+
+    broctl doctor.bro
+
+Run just the duplicate check
+
+    broctl doctor.bro check_duplicate_5_tuples
+
+""")
