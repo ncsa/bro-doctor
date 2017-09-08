@@ -278,7 +278,7 @@ class Doctor(BroControl.plugin.Plugin):
         histories = {"ok": 0, "bad": 0}
         for rec in read_bro_logs_with_line_limit(reversed(files), 100000):
             # Ignore flipped connections as those are probably backscatter
-            if '^' in rec['history']:
+            if rec['history'] == '^h':
                 continue
             # Ignore non tcp
             if rec['proto'] != 'tcp':
