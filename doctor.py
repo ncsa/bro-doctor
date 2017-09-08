@@ -243,13 +243,14 @@ class Doctor(BroControl.plugin.Plugin):
             tuples[tup] += 1
 
         bad = [(tup, cnt) for (tup, cnt) in tuples.items() if cnt > 1]
-        if bad:
-            self.err("{} out of {} connections appear to be duplicate".format(len(bad), len(tuples)))
+        bad_pct = 100 * len(bad) / len(tuples)
+        if bad_pct >= 1:
+            self.err("{}%, {} out of {} connections appear to be duplicate".format(bad_pct, len(bad), len(tuples)))
             self.err("First 20:")
             for tup, cnt in bad[:20]:
                 self.message("count={} {}".format(cnt, tup))
         else:
-            self.ok("ok! No duplicates found")
+            self.ok("ok, only {}%, {} out of {} connections appear to be duplicate".format(bad_pct, len(bad), len(tuples)))
             
         return not bool(bad)
 
@@ -287,7 +288,7 @@ class Doctor(BroControl.plugin.Plugin):
 
         pct = histories['bad_pct'] = 100 * histories['bad'] / (histories['ok'] + histories['bad'])
         msg = "OK connections={ok}. Broken connections={bad}. Bad Percentage={bad_pct}".format(**histories)
-        return self.ok_if(msg, pct < 2)
+        return self.ok_if(msg, pct <= 1)
         
     def cmd_custom(self, cmd, args, cmdout):
         args = args.split()
