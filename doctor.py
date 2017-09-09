@@ -248,7 +248,7 @@ class Doctor(BroControl.plugin.Plugin):
 
         total = loss + no_loss
         pct = percent(loss, total)
-        msg = "{:.2}%, {} out of {} connections have capture loss".format(pct, loss, total)
+        msg = "{:.2f}%, {} out of {} connections have capture loss".format(pct, loss, total)
         return self.ok_if(msg, pct <= 1)
 
     def check_pfring(self):
@@ -292,12 +292,12 @@ class Doctor(BroControl.plugin.Plugin):
         bad = [(tup, cnt) for (tup, cnt) in tuples.items() if cnt > 1]
         bad_pct = percent(len(bad), len(tuples))
         if bad_pct >= 1:
-            self.err("{.2}%, {} out of {} connections appear to be duplicate".format(bad_pct, len(bad), len(tuples)))
+            self.err("{.2f}%, {} out of {} connections appear to be duplicate".format(bad_pct, len(bad), len(tuples)))
             self.err("First 20:")
             for tup, cnt in bad[:20]:
                 self.message("count={} {}".format(cnt, tup))
         else:
-            self.ok("ok, only {:.2}%, {} out of {} connections appear to be duplicate".format(bad_pct, len(bad), len(tuples)))
+            self.ok("ok, only {:.2f}%, {} out of {} connections appear to be duplicate".format(bad_pct, len(bad), len(tuples)))
             
         return not bool(bad)
 
@@ -328,7 +328,7 @@ class Doctor(BroControl.plugin.Plugin):
 
         total = ok + bad
         pct = percent(bad, total)
-        msg = "{:.2}%, {} out of {} connections are half duplex".format(pct, bad, total)
+        msg = "{:.2f}%, {} out of {} connections are half duplex".format(pct, bad, total)
         return self.ok_if(msg, pct <= 1)
         
     def check_malloc(self):
