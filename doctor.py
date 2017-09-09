@@ -246,9 +246,9 @@ class Doctor(BroControl.plugin.Plugin):
             else:
                 loss += 1
 
-        pct = percent(loss, loss+no_loss)
-        msg = "Connections with no loss={no_loss}. With loss={loss}. Percentage with loss={pct}".format(
-            no_loss=no_loss, loss=loss, pct=pct)
+        total = loss + no_loss
+        pct = percent(loss, total)
+        msg = "{:.2}%, {} out of {} connections have capture loss".format(pct, loss, total)
         return self.ok_if(msg, pct <= 1)
 
     def check_pfring(self):
@@ -292,12 +292,12 @@ class Doctor(BroControl.plugin.Plugin):
         bad = [(tup, cnt) for (tup, cnt) in tuples.items() if cnt > 1]
         bad_pct = percent(len(bad), len(tuples))
         if bad_pct >= 1:
-            self.err("{}%, {} out of {} connections appear to be duplicate".format(bad_pct, len(bad), len(tuples)))
+            self.err("{.2}%, {} out of {} connections appear to be duplicate".format(bad_pct, len(bad), len(tuples)))
             self.err("First 20:")
             for tup, cnt in bad[:20]:
                 self.message("count={} {}".format(cnt, tup))
         else:
-            self.ok("ok, only {}%, {} out of {} connections appear to be duplicate".format(bad_pct, len(bad), len(tuples)))
+            self.ok("ok, only {:.2}%, {} out of {} connections appear to be duplicate".format(bad_pct, len(bad), len(tuples)))
             
         return not bool(bad)
 
@@ -309,7 +309,7 @@ class Doctor(BroControl.plugin.Plugin):
             self.err("No conn log files in the past day???")
             return False
 
-        histories = {"ok": 0, "bad": 0}
+        ok = bad = 0
         for rec in read_bro_logs_with_line_limit(reversed(files), 100000):
             # Ignore non tcp
             if rec['proto'] != 'tcp':
@@ -322,12 +322,13 @@ class Doctor(BroControl.plugin.Plugin):
             if len(h) == 1:
                 continue
             if all_lowercase(h) or all_uppercase(h):
-                histories['bad'] += 1
+                bad += 1
             else:
-                histories['ok'] += 1
+                ok += 1
 
-        pct = histories['bad_pct'] = percent(histories['bad'], histories['ok'] + histories['bad'])
-        msg = "Full Duplex connections={ok}. Half Duplex connections={bad}. Bad Percentage={bad_pct}".format(**histories)
+        total = ok + bad
+        pct = percent(bad, total)
+        msg = "{:.2}%, {} out of {} connections are half duplex".format(pct, bad, total)
         return self.ok_if(msg, pct <= 1)
         
     def check_malloc(self):
