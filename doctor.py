@@ -39,7 +39,7 @@ def percent(a, b):
     try :
         return 100.0 * a / b
     except ZeroDivisionError:
-        return 0
+        return 0.0
 
 def bro_ascii_reader(f):
     line = ''
