@@ -221,6 +221,36 @@ class Doctor(BroControl.plugin.Plugin):
             ok = self.ok_if(msg, overall_pct <= LOSS_THRESHOLD) and ok
         return ok
 
+    def check_capture_loss_conn_pct(self):
+        """Checking what percentage of recent tcp connections show loss"""
+
+        files = find_recent_log_files(self.log_directory, "conn.*", days=1)
+        if not files:
+            self.err("No conn log files in the past day???")
+            return False
+
+        loss = no_loss = 0
+        for rec in read_bro_logs_with_line_limit(reversed(files), 100000):
+            # Ignore non tcp
+            if rec['proto'] != 'tcp':
+                continue
+            # Ignore connections that don't even appear to be from our address space
+            if rec['local_orig'] != 'T' and rec['local_resp'] != 'T':
+                continue
+            h = rec['history'].replace("^", "")
+            #Ignore one packet connections
+            if len(h) == 1:
+                continue
+            if rec['missed_bytes'] == '0':
+                no_loss += 1
+            else:
+                loss += 1
+
+        pct = percent(loss, loss+no_loss)
+        msg = "Connections with no loss={no_loss}. With loss={loss}. Percentage with loss={pct}".format(
+            no_loss=no_loss, loss=loss, pct=pct)
+        return self.ok_if(msg, pct <= 1)
+
     def check_pfring(self):
         """Checking if bro is linked against pf_ring if lb_method is pf_ring"""
 
