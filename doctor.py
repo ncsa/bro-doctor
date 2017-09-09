@@ -152,6 +152,16 @@ class Doctor(BroControl.plugin.Plugin):
             self.err(msg)
         return is_ok
 
+    def _ldd_bro(self):
+        #TODO: OS X needs 'otool -L /path/to/bin/bro'
+        cmds = []
+        ldd_cmd = "ldd {}".format(self.bro_binary)
+        interface_nodes = set(n for n in self.nodes() if n.interface)
+        for n in interface_nodes:
+            cmds.append((n, ldd_cmd))
+
+        return self.executeParallel(cmds)
+
     def check_reporter(self):
         """Checking for recent reporter.log entries"""
         files = find_recent_log_files(self.log_directory, "reporter.*", days=GOBACK)
@@ -216,14 +226,8 @@ class Doctor(BroControl.plugin.Plugin):
 
         pfring_configured = any(n.lb_method == 'pf_ring' for n in self.nodes())
 
-        cmds = []
-        ldd_cmd = "ldd {}".format(self.bro_binary)
-        interface_nodes = set(n for n in self.nodes() if n.interface)
-        for n in interface_nodes:
-            cmds.append((n, ldd_cmd))
-
         pfring_linked = True
-        for (n, success, output) in self.executeParallel(cmds):
+        for (n, success, output) in self._ldd_bro():
             out = ''.join(output)
             pfring_linked = pfring_linked and 'pfring' in out
             if pfring_configured and 'pfring' not in out:
@@ -296,6 +300,16 @@ class Doctor(BroControl.plugin.Plugin):
         msg = "Full Duplex connections={ok}. Half Duplex connections={bad}. Bad Percentage={bad_pct}".format(**histories)
         return self.ok_if(msg, pct <= 1)
         
+    def check_malloc(self):
+        """Checking if bro is linked against a custom malloc like tcmalloc or jemalloc"""
+
+        malloc_linked = True
+        for (n, success, output) in self._ldd_bro():
+            out = ''.join(output)
+            malloc_linked = malloc_linked and 'malloc' in out
+
+        msg = "configured to use a custom malloc={}".format(malloc_linked)
+        return self.ok_if(msg, malloc_linked)
     def cmd_custom(self, cmd, args, cmdout):
         args = args.split()
         self.message("Using log directory {}".format(self.log_directory))
