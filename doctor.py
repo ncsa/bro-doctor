@@ -153,9 +153,8 @@ class Doctor(BroControl.plugin.Plugin):
         return is_ok
 
     def _ldd_bro(self):
-        #TODO: OS X needs 'otool -L /path/to/bin/bro'
         cmds = []
-        ldd_cmd = "ldd {}".format(self.bro_binary)
+        ldd_cmd = "ldd {0} || otool -L {0}".format(self.bro_binary)
         interface_nodes = set(n for n in self.nodes() if n.interface)
         for n in interface_nodes:
             cmds.append((n, ldd_cmd))
