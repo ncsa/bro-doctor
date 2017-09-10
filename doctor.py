@@ -292,7 +292,7 @@ class Doctor(BroControl.plugin.Plugin):
         bad = [(tup, cnt) for (tup, cnt) in tuples.items() if cnt > 1]
         bad_pct = percent(len(bad), len(tuples))
         if bad_pct >= 1:
-            self.err("{.2f}%, {} out of {} connections appear to be duplicate".format(bad_pct, len(bad), len(tuples)))
+            self.err("{:.2f}%, {} out of {} connections appear to be duplicate".format(bad_pct, len(bad), len(tuples)))
             self.err("First 20:")
             for tup, cnt in bad[:20]:
                 self.message("count={} {}".format(cnt, tup))
