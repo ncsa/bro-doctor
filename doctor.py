@@ -154,7 +154,7 @@ class Doctor(BroControl.plugin.Plugin):
 
     def _ldd_bro(self):
         cmds = []
-        ldd_cmd = "ldd {0} || otool -L {0}".format(self.bro_binary)
+        ldd_cmd = "ldd {0} 2>/dev/null || otool -L {0} 2>/dev/null".format(self.bro_binary)
         interface_nodes = set(n for n in self.nodes() if n.interface)
         for n in interface_nodes:
             cmds.append((n, ldd_cmd))
