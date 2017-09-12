@@ -135,6 +135,7 @@ class Doctor(BroControl.plugin.Plugin):
     def init(self):
         self.log_directory = self.getGlobalOption("logdir")
         self.bro_binary = self.getGlobalOption("bro")
+        self.bro_site = self.getGlobalOption("sitepolicypath")
         return True
 
     def commands(self):
@@ -340,6 +341,30 @@ class Doctor(BroControl.plugin.Plugin):
 
         msg = "configured to use a custom malloc={}".format(malloc_linked)
         return self.ok_if(msg, malloc_linked)
+
+    def check_deprecated_scripts(self):
+        """Checking if anything is in the deprecated local-logger.bro, local-manager.bro, local-proxy.bro, or local-worker.bro scripts"""
+        deprecated_scripts = ['local-logger.bro', 'local-manager.bro', 'local-proxy.bro', 'local-worker.bro']
+        bad_lines = defaultdict(list)
+        for f in deprecated_scripts:
+            fn = os.path.join(self.bro_site, f)
+            if not os.path.exists(fn):
+                continue
+            with open(fn) as script:
+                for line in script:
+                    if not line.startswith("#") and line.strip():
+                        bad_lines[f].append(line.rstrip())
+
+        for f in deprecated_scripts:
+            if f in bad_lines:
+                self.err("Non comment lines found in {}:".format(f))
+                for line in bad_lines[f]:
+                    self.message(line)
+
+        if not bad_lines:
+            self.ok("Nothing found")
+        return not bad_lines
+
     def cmd_custom(self, cmd, args, cmdout):
         args = args.split()
         results = BroControl.cmdresult.CmdResult()

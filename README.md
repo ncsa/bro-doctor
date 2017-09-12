@@ -14,6 +14,9 @@ Checks for recent capture_loss.log entries
 ## check_capture_loss_conn_pct
 Checks what percentage of recent tcp connections show loss
 
+## check_deprecated_scripts
+Checks if anything is in the deprecated local-logger.bro, local-manager.bro, local-proxy.bro, or local-worker.bro scripts
+
 ## check_duplicate_5_tuples
 Checks if any recent connections have been logged multiple times
 
