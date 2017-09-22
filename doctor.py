@@ -319,7 +319,7 @@ class Doctor(BroControl.plugin.Plugin):
             if 'h' not in rec['history'].lower() or '^' in rec['history']:
                 continue
             # Also ignore connections that didn't send bytes back and forth
-            if rec['orig_bytes'] == '0' or rec['resp_bytes'] == '0':
+            if rec.get('orig_bytes') == '0' or rec.get('resp_bytes') == '0':
                 continue
             tup = (rec['proto'], rec['id.orig_h'], rec['id.orig_p'], rec['id.resp_h'], rec["id.resp_p"])
             tup = ' '.join(tup)
