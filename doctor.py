@@ -15,6 +15,7 @@ import json
 import os
 import subprocess
 import string
+import sys
 
 lowercase_chars = set(string.lowercase)
 uppercase_chars = set(string.uppercase)
@@ -73,7 +74,10 @@ def bro_ascii_reader(f):
 
 def bro_json_reader(f):
     for line in f:
-        yield json.loads(line)
+        try:
+            yield json.loads(line)
+        except Exception, e:
+            sys.stderr.write("Skipping corrupt json log line: {!r}\n".format(line))
 
 def open_log(filename):
     if filename.endswith(".log"):
@@ -90,8 +94,11 @@ def read_bro_log(filename):
             reader = bro_ascii_reader
         elif first_byte == '{':
             reader = bro_json_reader
+        elif first_byte == '':
+            #empty log file
+            return
         else:
-            raise Exception("Unknown bro log type, first line: {!r}".format(f.readline().strip()))
+            raise Exception("Unknown bro log type for file {}, first line: {!r}".format(filename, f.readline().strip()))
 
     f = open_log(filename)
     for rec in reader(f):
