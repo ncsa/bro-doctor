@@ -16,6 +16,8 @@ import os
 import subprocess
 import string
 import sys
+import textwrap
+import traceback
 
 lowercase_chars = set(string.lowercase)
 uppercase_chars = set(string.uppercase)
@@ -129,6 +131,15 @@ def find_recent_log_files(base_dir, glob_pattern,  days=7):
 
     return matches
 
+def split_doc(txt):
+    """Split a docstring into a first line + rest blurb"""
+
+    short, rest = txt.split("\n", 1)
+
+    short = short.strip()
+    rest = textwrap.dedent(rest.rstrip())
+    return short, rest
+
 class Doctor(BroControl.plugin.Plugin):
     def __init__(self):
         super(Doctor, self).__init__(apiversion=1)
@@ -170,7 +181,10 @@ class Doctor(BroControl.plugin.Plugin):
         return self.executeParallel(cmds)
 
     def check_reporter(self):
-        """Checking for recent reporter.log entries"""
+        """Checking for recent reporter.log entries
+        
+        If bro is running well, there will be zero reporter.log messages.
+        """
         files = find_recent_log_files(self.log_directory, "reporter.*", days=GOBACK)
         if not files:
             self.message("No reporter log files in the past {} days".format(GOBACK) )
@@ -201,7 +215,10 @@ class Doctor(BroControl.plugin.Plugin):
         return False
 
     def check_capture_loss(self):
-        """Checking for recent capture_loss.log entries"""
+        """Checking for recent capture_loss.log entries
+        
+        Capture loss should be as low as possible across all workers.
+        """
         files = find_recent_log_files(self.log_directory, "capture_loss.*", days=GOBACK)
         if not files:
             self.err("No capture_loss log files in the past {} days".format(GOBACK) )
@@ -229,7 +246,11 @@ class Doctor(BroControl.plugin.Plugin):
         return ok
 
     def check_capture_loss_conn_pct(self):
-        """Checking what percentage of recent tcp connections show loss"""
+        """Checking what percentage of recent tcp connections show loss
+        
+        Like capture loss, but instead of reporting on the absolute loss amount,
+        report on the percentage of recent connections show any loss at all.
+        """
 
         files = find_recent_log_files(self.log_directory, "conn.*", days=1)
         if not files:
@@ -259,7 +280,11 @@ class Doctor(BroControl.plugin.Plugin):
         return self.ok_if(msg, pct <= 1)
 
     def check_pfring(self):
-        """Checking if bro is linked against pf_ring if lb_method is pf_ring"""
+        """Checking if bro is linked against pf_ring if lb_method is pf_ring
+        
+        If bro is configured to use pf_ring, it needs to be linked against it.
+        If bro is linked against pf_ring, it should be using it.
+        """
 
         pfring_configured = any(n.lb_method == 'pf_ring' for n in self.nodes())
 
@@ -275,7 +300,11 @@ class Doctor(BroControl.plugin.Plugin):
         return self.ok_if(msg, pfring_configured == pfring_linked)
 
     def check_duplicate_5_tuples(self):
-        """Checking if any recent connections have been logged multiple times"""
+        """Checking if any recent connections have been logged multiple times
+        
+        Each connection should only be logged once.  If a connection is logged multiple times,
+        especially once per worker, load balancing is not working properly.
+        """
         #TODO: should really check against multiple workers, but will need 2 funcs for that
 
         files = find_recent_log_files(self.log_directory, "conn.*", days=1)
@@ -309,7 +338,11 @@ class Doctor(BroControl.plugin.Plugin):
         return not bool(bad)
 
     def check_SAD_connections(self):
-        """Checking if many recent connections have a SAD or had history"""
+        """Checking if many recent connections have a SAD or had history
+        
+        If any connections have a history that is one sided (all uppercase or all lowercase)
+        this indicates that bro is only seeing half of the connection.
+        """
 
         files = find_recent_log_files(self.log_directory, "conn.*", days=1)
         if not files:
@@ -339,7 +372,10 @@ class Doctor(BroControl.plugin.Plugin):
         return self.ok_if(msg, pct <= 1)
         
     def check_malloc(self):
-        """Checking if bro is linked against a custom malloc like tcmalloc or jemalloc"""
+        """Checking if bro is linked against a custom malloc like tcmalloc or jemalloc
+        
+        Bro performs best when using a better malloc than the standard one in glibc.
+        """
 
         malloc_linked = True
         for (n, success, output) in self._ldd_bro():
@@ -350,7 +386,10 @@ class Doctor(BroControl.plugin.Plugin):
         return self.ok_if(msg, malloc_linked)
 
     def check_deprecated_scripts(self):
-        """Checking if anything is in the deprecated local-logger.bro, local-manager.bro, local-proxy.bro, or local-worker.bro scripts"""
+        """Checking if anything is in the deprecated local-logger.bro, local-manager.bro, local-proxy.bro, or local-worker.bro scripts
+        
+        Unless you know what you are doing, you should ONLY be using local.bro.
+        """
         deprecated_scripts = ['local-logger.bro', 'local-manager.bro', 'local-proxy.bro', 'local-worker.bro']
         bad_lines = defaultdict(list)
         for f in deprecated_scripts:
@@ -372,6 +411,30 @@ class Doctor(BroControl.plugin.Plugin):
             self.ok("Nothing found")
         return not bad_lines
 
+    def check_local_connections(self):
+        """Checking what percentage of recent tcp connections are remote to remote.
+        
+        This will detect problems with networks.cfg not listing all subnets that should be
+        considered local.
+        """
+
+        files = find_recent_log_files(self.log_directory, "conn.*", days=1)
+        if not files:
+            self.err("No conn log files in the past day???")
+            return False
+
+        local = no_local = 0
+        for rec in read_bro_logs_with_line_limit(reversed(files), 100000):
+            if rec['local_orig'] != 'T' and rec['local_resp'] != 'T':
+                no_local +=1
+            else:
+                local += 1
+
+        total = no_local + local
+        pct = percent(no_local, total)
+        msg = "{:.2f}%, {} out of {} connections are remote to remote".format(pct, no_local, total)
+        return self.ok_if(msg, pct <= 2)
+
     def cmd_custom(self, cmd, args, cmdout):
         args = args.split()
         results = BroControl.cmdresult.CmdResult()
@@ -383,16 +446,21 @@ class Doctor(BroControl.plugin.Plugin):
         #self.message("Using log directory {}".format(self.log_directory))
         funcs = [f for f in dir(self) if f.startswith("check_")]
         for func in funcs:
-            if args == ['help']:
-                self.message(func)
-                continue
             f = getattr(self, func)
+            short_msg, long_msg = split_doc(f.__doc__)
+            if args == ['help']:
+                self.message(" * {}: {}".format(func, short_msg.replace("Checking", "Checks")))
+                continue
             if args and func not in args:
                 continue
-            self.message("#" * (len(f.__doc__)+4))
-            self.message("# {} #".format( f.__doc__))
-            self.message("#" * (len(f.__doc__)+4))
-            results.ok = f() and results.ok
+            self.message("#" * (len(short_msg)+4))
+            self.message("# {} #".format(short_msg))
+            self.message("#" * (len(short_msg)+4))
+            try:
+                results.ok = f() and results.ok
+            except Exception, e:
+                results.ok = False
+                self.error(traceback.format_exc())
             self.message('')
             self.message('')
 
@@ -405,8 +473,10 @@ if __name__ == "__main__":
     print("This plugin runs the following checks:")
     for func in funcs:
         f = getattr(Doctor, func)
+        short_msg, long_msg = split_doc(f.__doc__)
         print("## {}".format(func))
-        print(f.__doc__.replace("Checking", "Checks"))
+        print(short_msg.replace("Checking", "Checks"))
+        print(long_msg)
         print()
 
     print("""
