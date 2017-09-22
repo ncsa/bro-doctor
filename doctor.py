@@ -73,7 +73,7 @@ def bro_ascii_reader(f):
 
 def bro_json_reader(f):
     for line in f:
-        yield json.loads(f)
+        yield json.loads(line)
 
 def open_log(filename):
     if filename.endswith(".log"):
