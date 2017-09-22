@@ -322,7 +322,7 @@ class Doctor(BroControl.plugin.Plugin):
             if rec.get('orig_bytes') == '0' or rec.get('resp_bytes') == '0':
                 continue
             tup = (rec['proto'], rec['id.orig_h'], rec['id.orig_p'], rec['id.resp_h'], rec["id.resp_p"])
-            tup = ' '.join(tup)
+            tup = ' '.join(str(f) for f in tup)
             tuples[tup] += 1
 
         bad = [(tup, cnt) for (tup, cnt) in tuples.items() if cnt > 1]
