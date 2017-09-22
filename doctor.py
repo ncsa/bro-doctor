@@ -88,10 +88,10 @@ def read_bro_log(filename):
         first_byte = f.read(1)
         if first_byte == '#':
             reader = bro_ascii_reader
-        if first_byte == '{':
+        elif first_byte == '{':
             reader = bro_json_reader
-    if not reader:
-        raise Exception("Unknown bro log type, first line: {!r}".format(f.readline().strip()))
+        else:
+            raise Exception("Unknown bro log type, first line: {!r}".format(f.readline().strip()))
 
     f = open_log(filename)
     for rec in reader(f):
