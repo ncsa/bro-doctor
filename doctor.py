@@ -44,6 +44,11 @@ def percent(a, b):
     except ZeroDivisionError:
         return 0.0
 
+def check_os_type():
+    uname = os.uname()
+    ostype = uname[0]
+    return ostype
+
 def bro_ascii_reader(f):
     line = ''
     headers = {}
@@ -378,12 +383,15 @@ class Doctor(BroControl.plugin.Plugin):
         """
 
         malloc_linked = True
-        for (n, success, output) in self._ldd_bro():
-            out = ''.join(output)
-            malloc_linked = malloc_linked and 'malloc' in out
-
-        msg = "configured to use a custom malloc={}".format(malloc_linked)
-        return self.ok_if(msg, malloc_linked)
+	osname = check_os_type()
+	if osname == "FreeBSD":
+		msg = "jemalloc is intergrated into FreeBSD libc."
+	else:
+		for (n, success, output) in self._ldd_bro():
+			out = ''.join(output)
+			malloc_linked = malloc_linked and 'malloc' in out
+			msg = "configured to use a custom malloc={}".format(malloc_linked)
+	return self.ok_if(msg, malloc_linked)
 
     def check_deprecated_scripts(self):
         """Checking if anything is in the deprecated local-logger.bro, local-manager.bro, local-proxy.bro, or local-worker.bro scripts
