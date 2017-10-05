@@ -185,6 +185,15 @@ class Doctor(BroControl.plugin.Plugin):
 
         return self.executeParallel(cmds)
 
+    def _list_plugins(self):
+        cmds = []
+        ldd_cmd = "{0} -N".format(self.bro_binary)
+        interface_nodes = set(n for n in self.nodes() if n.interface)
+        for n in interface_nodes:
+            cmds.append((n, ldd_cmd))
+
+        return self.executeParallel(cmds)
+
     def check_reporter(self):
         """Checking for recent reporter.log entries
         
@@ -285,24 +294,58 @@ class Doctor(BroControl.plugin.Plugin):
         return self.ok_if(msg, pct <= 1)
 
     def check_pfring(self):
-        """Checking if bro is linked against pf_ring if lb_method is pf_ring
+        """Checking pf_ring configuration
         
         If bro is configured to use pf_ring, it needs to be linked against it.
         If bro is linked against pf_ring, it should be using it.
+
+        If the bro pf_ring plugin is installed, the interface name should start with pf_ring::
         """
 
         pfring_configured = any(n.lb_method == 'pf_ring' for n in self.nodes())
 
-        pfring_linked = True
+        pfring_linked = {}
+        pfring_plugin = {}
+        in_use = False
         for (n, success, output) in self._ldd_bro():
             out = ''.join(output)
-            pfring_linked = pfring_linked and 'pfring' in out
-            if pfring_configured and 'pfring' not in out:
-                self.err("bro binary on node {} is not linked against pf_ring".format(n))
-                self.message(out)
+            pfring_linked[n] = 'pfring' in out
+        for (n, success, output) in self._list_plugins():
+            out = ''.join(output)
+            pfring_plugin[n] = 'Bro::PF_RING' in out
+
+
+        linked = True
+        plugin = True
+        pfring_in_use = False
+        success = True
+        for node in self.nodes():
+            intf = node.interface
+            if not intf:
+                continue
+            intf_pf = intf.startswith('pf_ring::')
+            linked_or_plugin = pfring_linked[node] or pfring_plugin[node]
+            if node.lb_method == 'pf_ring':
+                if not linked_or_plugin:
+                    self.err("bro binary on node {} is neither linked against pf_ring libpcap or using the bro pf_ring plugin".format(node))
+                    success = False
+            elif linked_or_plugin:
+                    self.err("bro binary on node {} is linked against pf_ring libpcap or the bro pf_ring plugin but lb_method is not pf_ring".format(node))
+                    success = False
+            if pfring_plugin[node] and not intf_pf:
+                    self.err("bro binary on node {} has the pf_ring plugin installed but the interface name does not start with pf_ring::".format(node))
+                    success = False
+            if not pfring_plugin[node] and intf_pf:
+                    self.err("bro binary on node {} does not have the pf_ring plugin installed but the interface name starts with pf_ring::".format(node))
+                    success = False
     
-        msg = "configured to use pf_ring={}. linked against pf_ring={}".format(pfring_configured, pfring_linked)
-        return self.ok_if(msg, pfring_configured == pfring_linked)
+            if node.lb_method == 'pf_ring' or intf_pf:
+                pfring_in_use = True
+            linked = linked and pfring_linked[node]
+            plugin = plugin and pfring_plugin[node]
+
+        msg = "configured to use pf_ring={} pcap={} plugin={}".format(pfring_in_use, linked, plugin)
+        return self.ok_if(msg, success)
 
     def check_duplicate_5_tuples(self):
         """Checking if any recent connections have been logged multiple times

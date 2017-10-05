@@ -45,10 +45,12 @@ Checks if bro is linked against a custom malloc like tcmalloc or jemalloc
 Bro performs best when using a better malloc than the standard one in glibc.
 
 ## check_pfring
-Checks if bro is linked against pf_ring if lb_method is pf_ring
+Checks pf_ring configuration
 
 If bro is configured to use pf_ring, it needs to be linked against it.
 If bro is linked against pf_ring, it should be using it.
+
+If the bro pf_ring plugin is installed, the interface name should start with pf_ring::
 
 ## check_reporter
 Checks for recent reporter.log entries
