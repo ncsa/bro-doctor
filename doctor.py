@@ -364,7 +364,7 @@ class Doctor(BroControl.plugin.Plugin):
         for rec in read_bro_logs_with_line_limit(reversed(files), 10000):
             # Only count connections that have completed a three way handshake
             # Also ignore flipped connections as those are probably backscatter
-            if 'h' not in rec['history'].lower() or '^' in rec['history']:
+            if 'history' not in rec or 'h' not in rec['history'].lower() or '^' in rec['history']:
                 continue
             # Also ignore connections that didn't send bytes back and forth
             if rec.get('orig_bytes') == '0' or rec.get('resp_bytes') == '0':
