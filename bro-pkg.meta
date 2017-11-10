@@ -2,3 +2,5 @@
 description=A broctl plugin that helps you troubleshoot common problems
 plugin_dir = .
 tags = broctl plugin, troubleshoot
+depends =
+	https://github.com/J-Gras/add-node-names *

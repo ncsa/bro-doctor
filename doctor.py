@@ -310,7 +310,6 @@ class Doctor(BroControl.plugin.Plugin):
         Each connection should only be logged once.  If a connection is logged multiple times,
         especially once per worker, load balancing is not working properly.
         """
-        #TODO: should really check against multiple workers, but will need 2 funcs for that
 
         files = find_recent_log_files(self.log_directory, "conn.*", days=1)
         if not files:
@@ -327,6 +326,8 @@ class Doctor(BroControl.plugin.Plugin):
             if rec.get('orig_bytes') == '0' or rec.get('resp_bytes') == '0':
                 continue
             tup = (rec['proto'], rec['id.orig_h'], rec['id.orig_p'], rec['id.resp_h'], rec["id.resp_p"])
+            if '_node_name' in rec:
+                tup = tup + (rec['_node_name'],)
             tup = ' '.join(str(f) for f in tup)
             tuples[tup] += 1
 
