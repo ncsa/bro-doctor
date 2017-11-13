@@ -316,7 +316,7 @@ class Doctor(BroControl.plugin.Plugin):
             self.err("No conn log files in the past day???")
             return False
 
-        tuples = defaultdict(int)
+        tuples = defaultdict(lambda: [])
         for rec in read_bro_logs_with_line_limit(reversed(files), 10000):
             # Only count connections that have completed a three way handshake
             # Also ignore flipped connections as those are probably backscatter
@@ -326,18 +326,21 @@ class Doctor(BroControl.plugin.Plugin):
             if rec.get('orig_bytes') == '0' or rec.get('resp_bytes') == '0':
                 continue
             tup = (rec['proto'], rec['id.orig_h'], rec['id.orig_p'], rec['id.resp_h'], rec["id.resp_p"])
-            if '_node_name' in rec:
-                tup = tup + (rec['_node_name'],)
             tup = ' '.join(str(f) for f in tup)
-            tuples[tup] += 1
+            node = rec['_node_name'] if '_node_name' in rec else 'bro'
+            tuples[tup].append(node)
 
-        bad = [(tup, cnt) for (tup, cnt) in tuples.items() if cnt > 1]
+        bad = [(tup, len(nds), set(nds)) for (tup, nds) in tuples.items() if len(nds) > 1]
         bad_pct = percent(len(bad), len(tuples))
         if bad_pct >= 1:
             self.err("{:.2f}%, {} out of {} connections appear to be duplicate".format(bad_pct, len(bad), len(tuples)))
             self.err("First 20:")
-            for tup, cnt in bad[:20]:
-                self.message("count={} {}".format(cnt, tup))
+            for tup, cnt, unds in bad[:20]:
+                msg = "count={} {}".format(cnt, tup)
+                if len(unds) > 1:
+                    ex = sorted(unds)[:3] + ['...'] if len(unds) > 4 else sorted(unds)
+                    msg = msg + " on {} workers ({})".format(len(unds), ', '.join(ex))
+                self.message(msg)
         else:
             self.ok("ok, only {:.2f}%, {} out of {} connections appear to be duplicate".format(bad_pct, len(bad), len(tuples)))
             
