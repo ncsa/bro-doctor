@@ -353,14 +353,13 @@ class Doctor(BroControl.plugin.Plugin):
         Each connection should only be logged once.  If a connection is logged multiple times,
         especially once per worker, load balancing is not working properly.
         """
-        #TODO: should really check against multiple workers, but will need 2 funcs for that
 
         files = find_recent_log_files(self.log_directory, "conn.*", days=1)
         if not files:
             self.err("No conn log files in the past day???")
             return False
 
-        tuples = defaultdict(int)
+        tuples = defaultdict(list)
         for rec in read_bro_logs_with_line_limit(reversed(files), 10000):
             # Only count connections that have completed a three way handshake
             # Also ignore flipped connections as those are probably backscatter
@@ -371,15 +370,20 @@ class Doctor(BroControl.plugin.Plugin):
                 continue
             tup = (rec['proto'], rec['id.orig_h'], rec['id.orig_p'], rec['id.resp_h'], rec["id.resp_p"])
             tup = ' '.join(str(f) for f in tup)
-            tuples[tup] += 1
+            node = rec.get('_node_name', 'bro')
+            tuples[tup].append(node)
 
-        bad = [(tup, cnt) for (tup, cnt) in tuples.items() if cnt > 1]
+        bad = [(tup, len(nds), set(nds)) for (tup, nds) in tuples.items() if len(nds) > 1]
         bad_pct = percent(len(bad), len(tuples))
         if bad_pct >= 1:
             self.err("{:.2f}%, {} out of {} connections appear to be duplicate".format(bad_pct, len(bad), len(tuples)))
             self.err("First 20:")
-            for tup, cnt in bad[:20]:
-                self.message("count={} {}".format(cnt, tup))
+            for tup, cnt, unds in bad[:20]:
+                msg = "count={} {}".format(cnt, tup)
+                if len(unds) > 1:
+                    ex = sorted(unds)[:3] + ['...'] if len(unds) > 4 else sorted(unds)
+                    msg = msg + " on {} workers ({})".format(len(unds), ', '.join(ex))
+                self.message(msg)
         else:
             self.ok("ok, only {:.2f}%, {} out of {} connections appear to be duplicate".format(bad_pct, len(bad), len(tuples)))
             
