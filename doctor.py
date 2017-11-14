@@ -9,6 +9,7 @@ from __future__ import print_function
 import BroControl.plugin
 
 from collections import defaultdict, namedtuple
+from math import sqrt
 import gzip
 import glob
 import json
@@ -345,6 +346,43 @@ class Doctor(BroControl.plugin.Plugin):
             self.ok("ok, only {:.2f}%, {} out of {} connections appear to be duplicate".format(bad_pct, len(bad), len(tuples)))
             
         return not bool(bad)
+
+    def check_connection_distribution(self):
+        """Checking if connections are unevenly distributed across workers
+
+        Usually, connections should be distributed evenly across workers. If connections are
+        unevenly distributed, load balancing might be not working properly.
+        """
+
+        files = find_recent_log_files(self.log_directory, "conn.*", days=1)
+        if not files:
+            self.err("No conn log files in the past day???")
+            return False
+
+        nodes = defaultdict(int)
+        for rec in read_bro_logs_with_line_limit(reversed(files), 10000):
+            # Only count connections that have completed a three way handshake
+            # Also ignore flipped connections as those are probably backscatter
+            if 'h' not in rec['history'].lower() or '^' in rec['history']:
+                continue
+            # Also ignore connections that didn't send bytes back and forth
+            if rec.get('orig_bytes') == '0' or rec.get('resp_bytes') == '0':
+                continue
+            node = rec.get('_node_name', 'bro')
+            nodes[node] += 1
+
+        mean = float(sum(nodes.values())) / len(nodes)
+        variance = reduce(lambda var, cnt: var + (cnt - mean)**2, nodes.values(), 0) / len(nodes)
+        rsd = sqrt(variance) / mean
+
+        if rsd > 0.1:
+            self.err("The distribution of connections across workers seems uneven:")
+        else:
+            self.ok("The distribution of connections across workers seems even:")
+        for nd in nodes:
+            self.message("{}:\t{} connections".format(nd, nodes[nd]))
+
+        return not (rsd > 0.1)
 
     def check_SAD_connections(self):
         """Checking if many recent connections have a SAD or had history
