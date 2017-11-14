@@ -33,6 +33,12 @@ Checks if any recent connections have been logged multiple times
 Each connection should only be logged once.  If a connection is logged multiple times,
 especially once per worker, load balancing is not working properly.
 
+## check_connection_distribution
+Checks if connections are unevenly distributed across workers
+
+Usually, connections should be distributed evenly across workers. If connections are
+unevenly distributed, load balancing might be not working properly.
+
 ## check_local_connections
 Checks what percentage of recent tcp connections are remote to remote.
 
