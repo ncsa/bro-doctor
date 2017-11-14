@@ -316,7 +316,7 @@ class Doctor(BroControl.plugin.Plugin):
             self.err("No conn log files in the past day???")
             return False
 
-        tuples = defaultdict(lambda: [])
+        tuples = defaultdict(list)
         for rec in read_bro_logs_with_line_limit(reversed(files), 10000):
             # Only count connections that have completed a three way handshake
             # Also ignore flipped connections as those are probably backscatter
@@ -327,7 +327,7 @@ class Doctor(BroControl.plugin.Plugin):
                 continue
             tup = (rec['proto'], rec['id.orig_h'], rec['id.orig_p'], rec['id.resp_h'], rec["id.resp_p"])
             tup = ' '.join(str(f) for f in tup)
-            node = rec['_node_name'] if '_node_name' in rec else 'bro'
+            node = rec.get('_node_name', 'bro')
             tuples[tup].append(node)
 
         bad = [(tup, len(nds), set(nds)) for (tup, nds) in tuples.items() if len(nds) > 1]
