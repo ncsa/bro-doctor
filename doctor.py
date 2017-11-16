@@ -361,15 +361,12 @@ class Doctor(BroControl.plugin.Plugin):
 
         nodes = defaultdict(int)
         for rec in read_bro_logs_with_line_limit(reversed(files), 10000):
-            # Only count connections that have completed a three way handshake
-            # Also ignore flipped connections as those are probably backscatter
-            if 'h' not in rec['history'].lower() or '^' in rec['history']:
-                continue
-            # Also ignore connections that didn't send bytes back and forth
-            if rec.get('orig_bytes') == '0' or rec.get('resp_bytes') == '0':
-                continue
             node = rec.get('_node_name', 'bro')
             nodes[node] += 1
+
+        if len(nodes) == 1:
+            self.ok("Only one worker appears to be in use, unable to check distribution.")
+            return True
 
         mean = float(sum(nodes.values())) / len(nodes)
         variance = reduce(lambda var, cnt: var + (cnt - mean)**2, nodes.values(), 0) / len(nodes)
