@@ -26,6 +26,8 @@ uppercase_chars = set(string.uppercase)
 GOBACK = 7 # days
 LOSS_THRESHOLD = 1
 
+NODE_KEYS = {"_node_name", "node", "peer"}
+
 RED = '\033[91m'
 ENDC = '\033[0m'
 GREEN = '\033[92m'
@@ -49,6 +51,18 @@ def get_os_type():
     uname = os.uname()
     ostype = uname[0]
     return ostype
+
+_node_key = None
+def get_node_name(rec):
+    global _node_key
+    if not _node_key:
+        nks = NODE_KEYS & set(rec.keys())
+        try:
+            _node_key = nks.pop()
+        except KeyError:
+            raise
+
+    return rec.get(_node_key)
 
 def bro_ascii_reader(f):
     line = ''
@@ -328,8 +342,12 @@ class Doctor(BroControl.plugin.Plugin):
                 continue
             tup = (rec['proto'], rec['id.orig_h'], rec['id.orig_p'], rec['id.resp_h'], rec["id.resp_p"])
             tup = ' '.join(str(f) for f in tup)
-            node = rec.get('_node_name', 'bro')
-            tuples[tup].append(node)
+            try:
+                node = get_node_name(rec)
+            except KeyError:
+                node = "bro"
+            finally:
+                tuples[tup].append(node)
 
         bad = [(tup, len(nds), set(nds)) for (tup, nds) in tuples.items() if len(nds) > 1]
         bad_pct = percent(len(bad), len(tuples))
@@ -361,8 +379,13 @@ class Doctor(BroControl.plugin.Plugin):
 
         nodes = defaultdict(int)
         for rec in read_bro_logs_with_line_limit(reversed(files), 10000):
-            node = rec.get('_node_name', 'bro')
-            nodes[node] += 1
+            try:
+                node = get_node_name(rec)
+            except KeyError:
+                self.err("No node names in conn log. Install add-node-names package to add a corresponding field.")
+                return False
+            else:
+                nodes[node] += 1
 
         if len(nodes) == 1:
             self.ok("Only one worker appears to be in use, unable to check distribution.")
