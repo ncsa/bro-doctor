@@ -9,6 +9,7 @@ from __future__ import print_function
 import BroControl.plugin
 
 from collections import defaultdict, namedtuple
+from math import sqrt
 import gzip
 import glob
 import json
@@ -24,6 +25,8 @@ uppercase_chars = set(string.uppercase)
         
 GOBACK = 7 # days
 LOSS_THRESHOLD = 1
+
+NODE_KEYS = {"_node_name", "node", "peer"}
 
 RED = '\033[91m'
 ENDC = '\033[0m'
@@ -48,6 +51,18 @@ def get_os_type():
     uname = os.uname()
     ostype = uname[0]
     return ostype
+
+_node_key = None
+def get_node_name(rec):
+    global _node_key
+    if not _node_key:
+        nks = NODE_KEYS & set(rec.keys())
+        try:
+            _node_key = nks.pop()
+        except KeyError:
+            raise
+
+    return rec.get(_node_key)
 
 def bro_ascii_reader(f):
     line = ''
@@ -370,8 +385,12 @@ class Doctor(BroControl.plugin.Plugin):
                 continue
             tup = (rec['proto'], rec['id.orig_h'], rec['id.orig_p'], rec['id.resp_h'], rec["id.resp_p"])
             tup = ' '.join(str(f) for f in tup)
-            node = rec.get('_node_name', 'bro')
-            tuples[tup].append(node)
+            try:
+                node = get_node_name(rec)
+            except KeyError:
+                node = "bro"
+            finally:
+                tuples[tup].append(node)
 
         bad = [(tup, len(nds), set(nds)) for (tup, nds) in tuples.items() if len(nds) > 1]
         bad_pct = percent(len(bad), len(tuples))
@@ -388,6 +407,45 @@ class Doctor(BroControl.plugin.Plugin):
             self.ok("ok, only {:.2f}%, {} out of {} connections appear to be duplicate".format(bad_pct, len(bad), len(tuples)))
             
         return not bool(bad)
+
+    def check_connection_distribution(self):
+        """Checking if connections are unevenly distributed across workers
+
+        Usually, connections should be distributed evenly across workers. If connections are
+        unevenly distributed, load balancing might be not working properly.
+        """
+
+        files = find_recent_log_files(self.log_directory, "conn.*", days=1)
+        if not files:
+            self.err("No conn log files in the past day???")
+            return False
+
+        nodes = defaultdict(int)
+        for rec in read_bro_logs_with_line_limit(reversed(files), 10000):
+            try:
+                node = get_node_name(rec)
+            except KeyError:
+                self.err("No node names in conn log. Install add-node-names package to add a corresponding field.")
+                return False
+            else:
+                nodes[node] += 1
+
+        if len(nodes) == 1:
+            self.ok("Only one worker appears to be in use, unable to check distribution.")
+            return True
+
+        mean = float(sum(nodes.values())) / len(nodes)
+        variance = reduce(lambda var, cnt: var + (cnt - mean)**2, nodes.values(), 0) / len(nodes)
+        rsd = sqrt(variance) / mean
+
+        if rsd > 0.1:
+            self.err("The distribution of connections across workers seems uneven:")
+        else:
+            self.ok("The distribution of connections across workers seems even:")
+        for nd in nodes:
+            self.message("{}:\t{} connections".format(nd, nodes[nd]))
+
+        return not (rsd > 0.1)
 
     def check_SAD_connections(self):
         """Checking if many recent connections have a SAD or had history
