@@ -292,13 +292,13 @@ class Doctor(BroControl.plugin.Plugin):
             if rec['proto'] != 'tcp':
                 continue
             # Ignore connections that don't even appear to be from our address space
-            if rec['local_orig'] != 'T' and rec['local_resp'] != 'T':
+            if rec['local_orig'] not in ('T', True) and rec['local_resp'] not in ('T', True):
                 continue
             h = rec['history'].replace("^", "")
             #Ignore one packet connections
             if len(h) == 1:
                 continue
-            if rec['missed_bytes'] == '0':
+            if rec['missed_bytes'] in ('0', 0):
                 no_loss += 1
             else:
                 loss += 1
@@ -381,7 +381,7 @@ class Doctor(BroControl.plugin.Plugin):
             if 'history' not in rec or 'h' not in rec['history'].lower() or '^' in rec['history']:
                 continue
             # Also ignore connections that didn't send bytes back and forth
-            if rec.get('orig_bytes') == '0' or rec.get('resp_bytes') == '0':
+            if rec.get('orig_bytes') in ('0', 0) or rec.get('resp_bytes') in ('0', 0):
                 continue
             tup = (rec['proto'], rec['id.orig_h'], rec['id.orig_p'], rec['id.resp_h'], rec["id.resp_p"])
             tup = ' '.join(str(f) for f in tup)
