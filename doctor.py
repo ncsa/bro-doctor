@@ -467,6 +467,9 @@ class Doctor(BroControl.plugin.Plugin):
             # Ignore connections that don't even appear to be from our address space
             if rec['local_orig'] not in ('T', True) and rec['local_resp'] not in ('T', True):
                 continue
+            # Ignore connections with no history
+            if 'history' not in rec:
+                continue
             h = rec['history'].replace("^", "")
             #Ignore one packet connections
             if len(h) == 1:
