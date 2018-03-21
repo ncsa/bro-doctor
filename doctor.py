@@ -465,7 +465,7 @@ class Doctor(BroControl.plugin.Plugin):
             if rec['proto'] != 'tcp':
                 continue
             # Ignore connections that don't even appear to be from our address space
-            if rec['local_orig'] != 'T' and rec['local_resp'] != 'T':
+            if rec['local_orig'] not in ('T', True) and rec['local_resp'] not in ('T', True):
                 continue
             h = rec['history'].replace("^", "")
             #Ignore one packet connections
@@ -539,7 +539,7 @@ class Doctor(BroControl.plugin.Plugin):
 
         local = no_local = 0
         for rec in read_bro_logs_with_line_limit(reversed(files), 100000):
-            if rec['local_orig'] != 'T' and rec['local_resp'] != 'T':
+            if rec['local_orig'] not in ('T', True) and rec['local_resp'] not in ('T', True):
                 no_local +=1
             else:
                 local += 1
