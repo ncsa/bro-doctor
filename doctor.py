@@ -149,7 +149,15 @@ def find_recent_log_files(base_dir, glob_pattern,  days=7):
     for d in dirs + ["current"]:
         matches.extend(glob.glob(os.path.join(base_dir, d, glob_pattern)))
 
-    return matches
+    recent_log_files = []
+    for m in matches:
+        try:
+            open_log(m).close()
+            recent_log_files.append(m)
+        except Exception, e:
+            sys.stdout.write("warning: {}\n".format(str(e)))
+
+    return recent_log_files
 
 def split_doc(txt):
     """Split a docstring into a first line + rest blurb"""
