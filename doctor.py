@@ -152,7 +152,7 @@ def find_recent_log_files(base_dir, glob_pattern,  days=7):
     recent_log_files = []
     for m in matches:
         try:
-            open_log(m)
+            open_log(m).close()
             recent_log_files.append(m)
         except Exception, e:
             sys.stdout.write("warning: {}\n".format(str(e)))
