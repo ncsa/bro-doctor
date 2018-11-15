@@ -98,7 +98,7 @@ def bro_json_reader(f):
     for line in f:
         try:
             yield json.loads(line)
-        except Exception, e:
+        except Exception as e:
             sys.stderr.write("Skipping corrupt json log line: {!r}\n".format(line))
 
 def open_log(filename):
@@ -154,7 +154,7 @@ def find_recent_log_files(base_dir, glob_pattern,  days=7):
         try:
             open_log(m).close()
             recent_log_files.append(m)
-        except Exception, e:
+        except Exception as e:
             sys.stdout.write("warning: {}\n".format(str(e)))
 
     return recent_log_files
@@ -586,7 +586,7 @@ class Doctor(BroControl.plugin.Plugin):
             self.message("#" * (len(short_msg)+4))
             try:
                 results.ok = f() and results.ok
-            except Exception, e:
+            except Exception as e:
                 results.ok = False
                 self.error(traceback.format_exc())
             self.message('')
