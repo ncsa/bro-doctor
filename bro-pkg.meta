@@ -1,7 +1,7 @@
 [package]
 description=A broctl plugin that helps you troubleshoot common problems
-	For cluster-related checks, the package "add-node-names" is recommended.
+  For cluster-related checks, the package "add-node-names" is recommended.
 plugin_dir = .
 tags = broctl plugin, troubleshoot
 suggests =
-    bro/j-gras/add-node-names *
+    j-gras/add-node-names *
