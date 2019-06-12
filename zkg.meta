@@ -4,4 +4,4 @@ description=A broctl plugin that helps you troubleshoot common problems
 plugin_dir = .
 tags = broctl plugin, troubleshoot
 depends =
-    zeek/j-gras/add-node-names *
+    j-gras/add-node-names *
