@@ -6,7 +6,14 @@ troubleshoot various common cluster problems.
 """
 
 from __future__ import print_function
-import BroControl.plugin
+try:
+    import ZeekControl.plugin as PluginBase
+    from ZeekControl import cmdresult
+    BINARY = "zeek"
+except ImportError:
+    import BroControl.plugin as PluginBase
+    from BroControl import cmdresult
+    BINARY = "bro"
 
 from collections import defaultdict, namedtuple
 from math import sqrt
@@ -168,7 +175,7 @@ def split_doc(txt):
     rest = textwrap.dedent(rest.rstrip())
     return short, rest
 
-class Doctor(BroControl.plugin.Plugin):
+class Doctor(PluginBase.Plugin):
     def __init__(self):
         super(Doctor, self).__init__(apiversion=1)
 
@@ -180,12 +187,12 @@ class Doctor(BroControl.plugin.Plugin):
 
     def init(self):
         self.log_directory = self.getGlobalOption("logdir")
-        self.bro_binary = self.getGlobalOption("bro")
+        self.bro_binary = self.getGlobalOption(BINARY)
         self.bro_site = self.getGlobalOption("sitepolicypath")
         return True
 
     def commands(self):
-        return [("bro", "", "Troubleshoot Bro installation")]
+        return [("", "", "Troubleshoot Bro installation")]
 
     def err(self, msg):
         self.error(red(msg))
@@ -565,7 +572,7 @@ class Doctor(BroControl.plugin.Plugin):
 
     def cmd_custom(self, cmd, args, cmdout):
         args = args.split()
-        results = BroControl.cmdresult.CmdResult()
+        results = cmdresult.CmdResult()
         results.ok = True
 
         if args == ['help']:
