@@ -1,7 +1,7 @@
 
 # Bro Doctor
 
-This plugin provides a "doctor.bro" command for broctl that will help to
+This plugin provides a "doctor" command for broctl that will help to
 troubleshoot various common cluster problems.
 
 This plugin runs the following checks:
@@ -66,15 +66,15 @@ If bro is running well, there will be zero reporter.log messages.
 
 # Usage
 
-    broctl doctor.bro [check] [check]
+    broctl doctor [check] [check]
 
 ## Examples
 Run all checks
 
-    broctl doctor.bro
+    broctl doctor
 
 Run just the duplicate check
 
-    broctl doctor.bro check_duplicate_5_tuples
+    broctl doctor check_duplicate_5_tuples
 
 
