@@ -27,8 +27,8 @@ import sys
 import textwrap
 import traceback
 
-lowercase_chars = set(string.lowercase)
-uppercase_chars = set(string.uppercase)
+lowercase_chars = set(string.ascii_lowercase)
+uppercase_chars = set(string.ascii_uppercase)
         
 GOBACK = 7 # days
 LOSS_THRESHOLD = 1
