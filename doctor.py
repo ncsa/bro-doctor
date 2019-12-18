@@ -76,11 +76,11 @@ def bro_ascii_reader(f):
     headers = {}
     it = iter(f)
     while not line.startswith("#types"):
-        line = next(it).rstrip()
+        line = next(it).rstrip().decode('latin-1')
         k,v = line[1:].split(None, 1)
         headers[k] = v
 
-    sep = headers['separator'].decode("string-escape")
+    sep = headers['separator'].encode('latin-1').decode("unicode-escape")
 
     for k,v in headers.items():
         if sep in v:
@@ -94,6 +94,7 @@ def bro_ascii_reader(f):
     vectors = [field for field, type in zip(fields, types) if type.startswith("vector[")]
 
     for row in it:
+        row = row.decode('latin-1')
         if row.startswith("#close"): break
         parts = row.rstrip().split(sep)
         rec = dict(zip(fields, parts))
@@ -110,7 +111,7 @@ def bro_json_reader(f):
 
 def open_log(filename):
     if filename.endswith(".log"):
-        return open(filename)
+        return open(filename, 'rb')
     if filename.endswith(".gz"):
         return gzip.open(filename)
     raise Exception("Unknown log extension: {}".format(filename))
@@ -118,7 +119,7 @@ def open_log(filename):
 def read_bro_log(filename):
     reader = None
     with open_log(filename) as f:
-        first_byte = f.read(1)
+        first_byte = f.read(1).decode('latin-1')
         if first_byte == '#':
             reader = bro_ascii_reader
         elif first_byte == '{':
