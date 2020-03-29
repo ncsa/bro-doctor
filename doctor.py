@@ -16,6 +16,7 @@ except ImportError:
     BINARY = "bro"
 
 from collections import defaultdict, namedtuple
+from functools import reduce
 from math import sqrt
 import gzip
 import glob
